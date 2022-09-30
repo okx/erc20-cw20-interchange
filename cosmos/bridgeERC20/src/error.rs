@@ -25,5 +25,8 @@ pub enum ContractError {
     CorruptedDataFound {},
 
     #[error("The Contract addr is not expect)")]
-    ContractERC20Err {addr:String},
+    ContractERC20Err {address:String},
+
+    #[error("The Caller addr is not expect)")]
+    ContractCallErr {address:String},
 }

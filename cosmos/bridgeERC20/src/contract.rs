@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     entry_point, to_binary, to_vec, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Storage, Uint128,SubMsg,CosmosMsg
+    StdResult, Storage, Uint128, CosmosMsg
 };
 use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 use std::convert::TryInto;
@@ -15,7 +15,7 @@ pub const PREFIX_ALLOWANCES: &[u8] = b"allowances";
 
 pub const KEY_CONSTANTS: &[u8] = b"constants";
 pub const KEY_TOTAL_SUPPLY: &[u8] = b"total_supply";
-const EVM_CONTRACT_ADDR: &str = "ex1fnkz39vpxmukf6mp78essh8g0hrzp3gylyd2u8";
+pub const EVM_CONTRACT_ADDR: &str = "ex1k8xgulufea7ap283k0ac5q54u0nj45hatf5x6d";
 
 #[entry_point]
 pub fn instantiate(
@@ -24,16 +24,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let mut total_supply: u128 = 0;
-    {
-        // Initial balances
-        let mut balances_store = PrefixedStorage::new(deps.storage, PREFIX_BALANCES);
-        for row in msg.initial_balances {
-            let amount_raw = row.amount.u128();
-            balances_store.set(row.address.as_str().as_bytes(), &amount_raw.to_be_bytes());
-            total_supply += amount_raw;
-        }
-    }
+    let total_supply: u128 = 0;
 
     // Check name, symbol, decimals
     if !is_valid_name(&msg.name) {
@@ -67,25 +58,19 @@ pub fn execute(
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
     match msg {
         ExecuteMsg::Approve { spender, amount } => try_approve(deps, env, info, spender, &amount),
-        ExecuteMsg::Transfer { recipient, amount } => {
-            try_transfer(deps, env, info, recipient, &amount)
-        }
+        ExecuteMsg::Transfer { recipient, amount } => try_transfer(deps, env, info, recipient, &amount),
+        ExecuteMsg::Burn { amount } => try_burn(deps, env, info, &amount),
+        ExecuteMsg::MintCW20 { recipient, amount } => try_mint_cw20(deps, env, info, recipient, amount),
         ExecuteMsg::TransferFrom {
             owner,
             recipient,
             amount,
         } => try_transfer_from(deps, env, info, owner, recipient, &amount),
-        ExecuteMsg::Burn { amount } => try_burn(deps, env, info, &amount),
-        ExecuteMsg::MintCW20 {
-            recipient,
-            amount,
-        } => try_mint_cw20(deps, env,info,recipient,amount),
-
         ExecuteMsg::SendToEvm {
-            evmContract,
+            contract,
             recipient,
             amount,
-        } => try_send_to_erc20(deps, env,evmContract,recipient,amount),
+        } => try_send_to_erc20(deps, env, info, contract, recipient, amount),
     }
 }
 
@@ -121,7 +106,7 @@ fn try_mint_cw20(
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
     if info.sender.to_string() != EVM_CONTRACT_ADDR.to_string() {
         return Err(ContractError::ContractERC20Err {
-           addr:info.sender.to_string()
+           address:info.sender.to_string()
         });
     }
     let amount_raw = amount.u128();
@@ -157,10 +142,18 @@ fn try_mint_cw20(
 fn try_send_to_erc20(
     deps: DepsMut,
     _env: Env,
-    erc20: String,
+    info: MessageInfo,
+    contract: String,
     recipient: String,
     amount: Uint128,
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
+
+    if info.sender.to_string() != recipient {
+        return Err(ContractError::ContractCallErr {
+           address:info.sender.to_string()
+        });
+    }
+
     let amount_raw = amount.u128();
     let to = deps.api.addr_validate(recipient.as_str())?;
 
@@ -190,44 +183,20 @@ fn try_send_to_erc20(
 
     config_store.set(KEY_TOTAL_SUPPLY, &total_supply.to_be_bytes());
 
-    // callevm(_env,erc20,recipient,amount);
-    // Ok(Response::new()
-    //     .add_attribute("action", "try_send_to_erc20")
-    //     .add_attribute("account", to.to_string())
-    //     .add_attribute("amount", amount.to_string()))
 
-    let hehe = SendToEvmMsg {
+    let message = CosmosMsg::Custom(SendToEvmMsg {
         sender: _env.contract.address.to_string(),
-        contract: erc20.to_string(),
+        contract: contract.to_string(),
         recipient: recipient,
         amount: amount,
-    };
+    });
 
-    Ok(Response::new()
+    Ok(Response::new().add_message(message)
            .add_attribute("action", "call evm")
            .add_attribute("amount", amount.to_string())
-           .add_message(hehe)
            .set_data(b"the result data"))
 }
 
-// fn callevm(
-//     _env: Env,
-//     erc20: String,
-//     recipient: String,
-//     amount: Uint128,
-// ) -> Result<Response<crate::msg::SendToEvmMsg>, ContractError> {
-//     let message = crate::msg::SendToEvmMsg::SendToEvm {
-//         sender: _env.contract.address.to_string(),
-//         contract: erc20.to_string(),
-//         recipient: recipient,
-//         amount: amount,
-//     };
-//
-//     Ok(Response::new()
-//         .add_attribute("action", "call evm")
-//         .add_attribute("amount", amount.to_string())
-//         .add_message(message))
-// }
 fn try_transfer(
     deps: DepsMut,
     _env: Env,

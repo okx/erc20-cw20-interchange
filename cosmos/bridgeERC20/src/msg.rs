@@ -1,23 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
 use cosmwasm_std::Uint128;
 use cosmwasm_std::{CosmosMsg,CustomMsg};
-use schemars::gen::SchemaGenerator;
-use schemars::schema::Schema;
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-pub struct InitialBalance {
-    pub address: String,
-    pub amount: Uint128,
-}
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InstantiateMsg {
     pub name: String,
     pub symbol: String,
-    pub decimals: u8,
-    pub initial_balances: Vec<InitialBalance>,
+    pub decimals: u8
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -44,7 +34,7 @@ pub enum ExecuteMsg {
         amount: Uint128,
     },
     SendToEvm {
-        evmContract: String,
+        contract: String,
         recipient: String,
         amount: Uint128,
     }
@@ -59,6 +49,7 @@ pub struct SendToEvmMsg {
     pub amount: Uint128,
 
 }
+
 impl Into<CosmosMsg<SendToEvmMsg>> for SendToEvmMsg {
     fn into(self) -> CosmosMsg<SendToEvmMsg> {
         CosmosMsg::Custom(self)
