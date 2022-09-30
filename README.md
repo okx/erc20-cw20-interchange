@@ -173,18 +173,14 @@ main().catch((error) => {
 `BridgeERC20.sol`合约实现了`send_to_wasm`方法和`mintERC20`方法用于发送和接收CM的资产转移消息。CM合约同样实现了`send_to_evm`和`MintCW20`方法用于发送和接收EVM的资产。
 ### ERC20 => CW20
 
-`function send_to_wasm
-
-(ex1s0vrf96rrsknl64jj65lhf89ltwj7lksr7m3r9,ex1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqre8ecq,100)`
+    function send_to_wasm(ex1s0vrf96rrsknl64jj65lhf89ltwj7lksr7m3r9,ex1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqre8ecq,100)
 
     oker@192 bridgeERC20 % exchaincli query wasm contract-state smart "ex1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqre8ecq" '{"balance":{"address":"ex1s0vrf96rrsknl64jj65lhf89ltwj7lksr7m3r9"}}'
     {"data":{"balance":"100"}}
 
-`function balanceOf(0x83D83497431C2D3FEab296a9fba4e5FaDD2f7eD0)
-
-//return
-
-9999999900`
+    function balanceOf(0x83D83497431C2D3FEab296a9fba4e5FaDD2f7eD0)
+    //return
+    9999999900
 
 ### CW20 => ERC20
 
@@ -252,10 +248,8 @@ main().catch((error) => {
     oker@192 bridgeERC20 % exchaincli query wasm contract-state smart "ex1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqre8ecq" '{"balance":{"address":"ex1s0vrf96rrsknl64jj65lhf89ltwj7lksr7m3r9"}}'                                                                                                                                        
     {"data":{"balance":"1"}}
 
-`function balanceOf(0x83D83497431C2D3FEab296a9fba4e5FaDD2f7eD0)
-
-//return
-
-9999999999`
+    function balanceOf(0x83D83497431C2D3FEab296a9fba4e5FaDD2f7eD0)
+    //return
+    9999999999
 ## 3、二次开发
 OKC公链在接收EVM特定事件`__OKCSendToWasm`后，会触发一笔CM交易调用指定地址`的MintCW20`方法；在接收到CM发出`CosmosMsg::Custom`消息时，会通过特定地址`0xc63cf6c8E1f3DF41085E9d8Af49584dae1432b4f`发起一笔EVM交易调用指定地址的`mintERC20`方法
