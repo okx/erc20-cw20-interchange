@@ -7,7 +7,8 @@ use cosmwasm_std::{CosmosMsg,CustomMsg};
 pub struct InstantiateMsg {
     pub name: String,
     pub symbol: String,
-    pub decimals: u8
+    pub decimals: u8,
+    pub evm_contract: String
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
