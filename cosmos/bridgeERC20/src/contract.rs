@@ -68,10 +68,9 @@ pub fn execute(
             amount,
         } => try_transfer_from(deps, env, info, owner, recipient, &amount),
         ExecuteMsg::SendToEvm {
-            contract,
             recipient,
             amount,
-        } => try_send_to_erc20(deps, env, info, contract, recipient, amount),
+        } => try_send_to_erc20(deps, env, info, recipient, amount),
     }
 }
 
@@ -152,7 +151,6 @@ fn try_send_to_erc20(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    contract: String,
     recipient: String,
     amount: Uint128,
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
@@ -160,6 +158,12 @@ fn try_send_to_erc20(
     let from = info.sender;
     let amount_raw = amount.u128();
     let mut account_balance = read_balance(deps.storage, &from)?;
+
+    let config_storage = ReadonlyPrefixedStorage::new(deps.storage, PREFIX_CONFIG);
+    let data = config_storage
+        .get(KEY_CONSTANTS);
+
+    let const_data: Constants = from_slice(&data.unwrap()).unwrap();
 
     if account_balance < amount_raw {
         return Err(ContractError::InsufficientFunds {
@@ -188,7 +192,7 @@ fn try_send_to_erc20(
 
     let message = CosmosMsg::Custom(SendToEvmMsg {
         sender: _env.contract.address.to_string(),
-        contract: contract.to_string(),
+        contract: const_data.contract.to_string(),
         recipient: recipient,
         amount: amount,
     });

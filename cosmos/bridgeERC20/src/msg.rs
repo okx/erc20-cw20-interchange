@@ -35,7 +35,6 @@ pub enum ExecuteMsg {
         amount: Uint128,
     },
     SendToEvm {
-        contract: String,
         recipient: String,
         amount: Uint128,
     }
