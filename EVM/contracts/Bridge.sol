@@ -39,9 +39,9 @@ contract Bridge is Initializable{
         return true;
     }
 
-    function send_to_wasm(string memory recipient, uint256 amount) public {
+    function send_to_wasm(string memory recipient, uint128 amount) public {
         
-        IERC20(evmContractAddress).transferFrom(msg.sender, address(this), amount);
+        IERC20(evmContractAddress).transferFrom(msg.sender, address(this), uint256(amount));
 
         emit __OKCSendToWasm(wasmContractAddress, recipient, amount);
     }
