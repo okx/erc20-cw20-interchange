@@ -6,4 +6,5 @@ pub struct Constants {
     pub name: String,
     pub symbol: String,
     pub decimals: u8,
+    pub contract: String
 }
