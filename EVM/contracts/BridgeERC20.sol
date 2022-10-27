@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 contract BridgeERC20 is ERC20, Initializable{
 
     address public constant MODULE_ADDRESS = 0xc63cf6c8E1f3DF41085E9d8Af49584dae1432b4f;
-    string public wasmContractAddress;
+    string internal wasmContractAddress;
 
 
     event Initialize(string wasmContractAddress);
