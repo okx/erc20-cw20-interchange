@@ -4,6 +4,8 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 use std::convert::TryInto;
+use bech32::{self, FromBase32, ToBase32, Variant};
+
 
 use crate::error::ContractError;
 use crate::msg::{AllowanceResponse, BalanceResponse, ExecuteMsg, InstantiateMsg, QueryMsg,SendToEvmMsg};
@@ -15,6 +17,7 @@ pub const PREFIX_ALLOWANCES: &[u8] = b"allowances";
 
 pub const KEY_CONSTANTS: &[u8] = b"constants";
 pub const KEY_TOTAL_SUPPLY: &[u8] = b"total_supply";
+
 
 #[entry_point]
 pub fn instantiate(
@@ -97,6 +100,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
     }
 }
 
+
 fn try_mint_cw20(
     deps: DepsMut,
     _env: Env,
@@ -111,8 +115,11 @@ fn try_mint_cw20(
         .get(KEY_CONSTANTS);
 
     let const_data: Constants = from_slice(&data.unwrap()).unwrap();
+    let evm_contract_address = hex::decode(&const_data.contract[2..]).unwrap();
+    let (hrp,data,variant) = bech32::decode(&info.sender.as_str()).unwrap();
+    let caller = Vec::<u8>::from_base32(&data).unwrap();
 
-    if info.sender.to_string() != const_data.contract.to_string() {
+    if caller != evm_contract_address {
         return Err(ContractError::ContractERC20Err {
            address:info.sender.to_string()
         });
@@ -154,6 +161,12 @@ fn try_send_to_erc20(
     recipient: String,
     amount: Uint128,
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
+
+
+    //check recipient address should a ETH address
+    if is_valid_eth_address(&recipient) {
+        return Err(ContractError::InvalidRecipient {});
+    }
 
     let from = info.sender;
     let amount_raw = amount.u128();
@@ -403,6 +416,17 @@ fn is_valid_symbol(symbol: &str) -> bool {
         if *byte < 65 || *byte > 90 {
             return false;
         }
+    }
+    true
+}
+
+fn is_valid_eth_address(input: &str) -> bool {
+    
+    if input.len() != 42 {
+        return false;
+    }
+    if !input.starts_with("0x") {
+        return false;
     }
     true
 }
@@ -1421,7 +1445,95 @@ mod tests {
         }
     }
     
-    mod bridge {
+    // mod bridge {
+    //     use super::*;
+    //     use cosmwasm_std::{attr, Addr};
+
+    //     fn address(index: u8) -> Addr {
+    //         match index {
+    //             0 => Addr::unchecked("addr0000".to_string()), // contract instantiateializer
+    //             1 => Addr::unchecked("addr1111".to_string()),
+    //             2 => Addr::unchecked("addr4321".to_string()),
+    //             3 => Addr::unchecked("addr5432".to_string()),
+    //             4 => Addr::unchecked("addr6543".to_string()),
+    //             _ => panic!("Unsupported address index"),
+    //         }
+    //     }
+
+    //     fn make_instantiate_msg() -> InstantiateMsg {
+    //         InstantiateMsg {
+    //             name: "Cash Token".to_string(),
+    //             symbol: "CASH".to_string(),
+    //             decimals: 9,
+    //             evm_contract: "0xcd38B80aee05cad65571B7564BD110fdf2990de6".to_string(),
+    //         }
+    //     }
+
+    //     #[test]
+    //     fn can_send_to_wasm() {
+    //         let mut deps = mock_dependencies(&[]);
+    //         let instantiate_msg = make_instantiate_msg();
+    //         let (env, info) = mock_env_height("0xcd38B80aee05cad65571B7564BD110fdf2990de6", 450, 550);
+    //         let res = instantiate(deps.as_mut(), env.clone(), info, instantiate_msg).unwrap();
+    //         assert_eq!(0, res.messages.len());
+
+    //         let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: "0xcd38B80aee05cad65571B7564BD110fdf2990de6".to_string(), amount: (Uint128::from(100u128)) };
+
+    //         let (env, info) = mock_env_height("ex1e5utszhwqh9dv4t3katyh5gslhefjr0xmlcyyr", 450, 550);
+    //         let mint_cw20_result = execute(deps.as_mut(), env, info, mint_cw20_msg).unwrap();
+    //         assert_eq!(mint_cw20_result.messages.len(), 0);
+    //         assert_eq!(
+    //             mint_cw20_result.attributes,
+    //             vec![
+    //                 attr("action", "MINT"),
+    //                 attr("account", "addr1111"),
+    //                 attr("sender", "addr0000"),
+    //                 attr("amount","100"),
+    //             ]
+    //         );
+
+    //         assert_eq!(
+    //             get_balance(&deps.storage, &Addr::unchecked("addr1111".to_string())),
+    //             100
+    //         );
+    //         assert_eq!(get_total_supply(&deps.storage), 100);
+    //     } 
+
+    //     #[test]
+    //     fn can_send_to_evm(){
+    //         let mut deps = mock_dependencies(&[]);
+    //         let instantiate_msg = make_instantiate_msg();
+    //         let (env, info) = mock_env_height(&address(0).as_str(), 450, 550);
+    //         let res = instantiate(deps.as_mut(), env.clone(), info, instantiate_msg).unwrap();
+    //         assert_eq!(0, res.messages.len());
+
+    //         let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: address(1).to_string(), amount: (Uint128::from(100u128)) };
+
+    //         let (env, info) = mock_env_height("addr0000", 450, 550);
+    //         execute(deps.as_mut(), env, info, mint_cw20_msg).unwrap();
+
+    //         let send_to_evm_msg = ExecuteMsg::SendToEvm {recipient: address(1).to_string(), amount: (Uint128::from(100u128)) };
+
+    //         let (env, info) = mock_env_height("addr1111", 450, 550);
+    //         let send_to_evm_result = execute(deps.as_mut(), env, info, send_to_evm_msg).unwrap();
+
+    //         print!("这是一个打印结果{:?}",send_to_evm_result);
+    //         assert_eq!(send_to_evm_result.messages.len(), 1);
+    //         assert_eq!(send_to_evm_result.attributes, 
+    //             vec![
+    //                 attr("action","call evm"),
+    //                 attr("amount","100")
+    //             ]);
+
+    //         assert_eq!(
+    //             get_balance(&deps.storage, &Addr::unchecked("addr1111".to_string())),
+    //             0
+    //         );
+    //     }
+    // }
+
+
+    mod deploy_test {
         use super::*;
         use cosmwasm_std::{attr, Addr};
 
@@ -1441,29 +1553,29 @@ mod tests {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
                 decimals: 9,
-                evm_contract: "addr0000".to_string(),
+                evm_contract: "0xcd38B80aee05cad65571B7564BD110fdf2990de6".to_string(),
             }
         }
 
         #[test]
-        fn can_send_to_wasm() {
+        fn contract_can_same() {
             let mut deps = mock_dependencies(&[]);
             let instantiate_msg = make_instantiate_msg();
-            let (env, info) = mock_env_height(&address(0).as_str(), 450, 550);
+            let (env, info) = mock_env_height("ex1e5utszhwqh9dv4t3katyh5gslhefjr0xmlcyyr", 450, 550);
             let res = instantiate(deps.as_mut(), env.clone(), info, instantiate_msg).unwrap();
             assert_eq!(0, res.messages.len());
 
-            let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: address(1).to_string(), amount: (Uint128::from(100u128)) };
+            let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: "addr111".to_string(), amount: (Uint128::from(100u128)) };
 
-            let (env, info) = mock_env_height("addr0000", 450, 550);
+            let (env, info) = mock_env_height("ex1e5utszhwqh9dv4t3katyh5gslhefjr0xmlcyyr", 450, 550);
             let mint_cw20_result = execute(deps.as_mut(), env, info, mint_cw20_msg).unwrap();
             assert_eq!(mint_cw20_result.messages.len(), 0);
             assert_eq!(
                 mint_cw20_result.attributes,
                 vec![
                     attr("action", "MINT"),
-                    attr("account", "addr1111"),
-                    attr("sender", "addr0000"),
+                    attr("account", "addr111"),
+                    attr("sender", "ex1e5utszhwqh9dv4t3katyh5gslhefjr0xmlcyyr"),
                     attr("amount","100"),
                 ]
             );
@@ -1474,37 +1586,6 @@ mod tests {
             );
             assert_eq!(get_total_supply(&deps.storage), 100);
         } 
-
-        #[test]
-        fn can_send_to_evm(){
-            let mut deps = mock_dependencies(&[]);
-            let instantiate_msg = make_instantiate_msg();
-            let (env, info) = mock_env_height(&address(0).as_str(), 450, 550);
-            let res = instantiate(deps.as_mut(), env.clone(), info, instantiate_msg).unwrap();
-            assert_eq!(0, res.messages.len());
-
-            let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: address(1).to_string(), amount: (Uint128::from(100u128)) };
-
-            let (env, info) = mock_env_height("addr0000", 450, 550);
-            execute(deps.as_mut(), env, info, mint_cw20_msg).unwrap();
-
-            let send_to_evm_msg = ExecuteMsg::SendToEvm { contract: "addr0000".to_string(), recipient: address(1).to_string(), amount: (Uint128::from(100u128)) };
-
-            let (env, info) = mock_env_height("addr1111", 450, 550);
-            let send_to_evm_result = execute(deps.as_mut(), env, info, send_to_evm_msg).unwrap();
-
-            print!("这是一个打印结果{:?}",send_to_evm_result);
-            assert_eq!(send_to_evm_result.messages.len(), 1);
-            assert_eq!(send_to_evm_result.attributes, 
-                vec![
-                    attr("action","call evm"),
-                    attr("amount","100")
-                ]);
-
-            assert_eq!(
-                get_balance(&deps.storage, &Addr::unchecked("addr1111".to_string())),
-                0
-            );
-        }
     }
+
 }

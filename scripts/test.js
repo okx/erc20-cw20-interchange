@@ -40,10 +40,10 @@ describe("WASM bridge", function () {
     //show EVM contract
     console.log("EVM contract is "+bridgeERC20.address);
     //get ex address of contract
-    exBridgeERC20Address = toolbox.evmAddress2ExAddress(bridgeERC20.address)
+    // exBridgeERC20Address = toolbox.evmAddress2ExAddress(bridgeERC20.address) 
 
     //deploy WASM contract(include init)
-    wasmContract =  await wasmDeploy.deployWASMContract(exBridgeERC20Address);
+    wasmContract =  await wasmDeploy.deployWASMContract(bridgeERC20.address);
     console.log("WASM contract is "+ wasmContract.contractAddress)
     console.log("init WASM contract ok!")
 

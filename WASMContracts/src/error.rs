@@ -29,4 +29,7 @@ pub enum ContractError {
 
     #[error("The Caller addr is not expect)")]
     ContractCallErr {address:String},
+
+    #[error("The recipient addr is not expect)")]
+    InvalidRecipient{}
 }
