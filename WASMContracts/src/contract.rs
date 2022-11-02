@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 use std::convert::TryInto;
-use bech32::{self, FromBase32, ToBase32, Variant};
+use bech32::{self, FromBase32};
 
 
 use crate::error::ContractError;
@@ -171,7 +171,7 @@ fn try_send_to_erc20(
 
 
     //check recipient address should a ETH address
-    if is_valid_eth_address(&recipient) {
+    if !is_valid_eth_address(&recipient) {
         return Err(ContractError::InvalidRecipient {address: recipient});
     }
 
@@ -432,17 +432,6 @@ fn is_valid_eth_address(input: &str) -> bool {
         return false;
     }
     if !input.starts_with("0x") {
-        return false;
-    }
-    true
-}
-
-fn is_valid_wasm_address(input: &str) -> bool {
-    
-    if input.len() != 42 {
-        return false;
-    }
-    if !input.starts_with("ex") {
         return false;
     }
     true

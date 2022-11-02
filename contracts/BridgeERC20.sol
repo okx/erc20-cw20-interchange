@@ -38,6 +38,10 @@ contract BridgeERC20 is ERC20, Initializable{
         return true;
     }
 
+    /**
+     * @dev The function help to send erc20 token to wasm
+     * @param recipient it must be "ex" address
+     */
     function send_to_wasm(string memory recipient, uint128 amount) public {
         _burn(msg.sender, uint256(amount));
         emit __OKCSendToWasm(wasmContractAddress, recipient, amount);
