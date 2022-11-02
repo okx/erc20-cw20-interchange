@@ -101,6 +101,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 }
 
 
+/**
+ * 
+ * @ recipient must be "ex" address,check by blockchain
+ */
 fn try_mint_cw20(
     deps: DepsMut,
     _env: Env,
@@ -109,25 +113,28 @@ fn try_mint_cw20(
     amount: Uint128,
 ) -> Result<Response<SendToEvmMsg>, ContractError> {
 
-    //read evm contract
+    //read evm contract with [u8]
     let config_storage = ReadonlyPrefixedStorage::new(deps.storage, PREFIX_CONFIG);
-    let data = config_storage
-        .get(KEY_CONSTANTS);
+    let data = config_storage.get(KEY_CONSTANTS);
 
     let const_data: Constants = from_slice(&data.unwrap()).unwrap();
     let evm_contract_address = hex::decode(&const_data.contract[2..]).unwrap();
-    let (hrp,data,variant) = bech32::decode(&info.sender.as_str()).unwrap();
-    let caller = Vec::<u8>::from_base32(&data).unwrap();
 
-    if caller != evm_contract_address {
-        return Err(ContractError::ContractERC20Err {
+    //read sender address with [u8]
+    let (_,data,_) = bech32::decode(&info.sender.as_str()).unwrap();
+    let sender = Vec::<u8>::from_base32(&data).unwrap();
+
+    //check tx sender is specified address
+    if sender != evm_contract_address {
+        return Err(ContractError::InvalidSender {
            address:info.sender.to_string()
         });
     }
+
     let amount_raw = amount.u128();
+    //check recipient is validate
     let recipient_address = deps.api.addr_validate(recipient.as_str())?;
     let mut account_balance = read_balance(deps.storage, &recipient_address)?;
-
 
     account_balance += amount_raw;
 
@@ -165,18 +172,12 @@ fn try_send_to_erc20(
 
     //check recipient address should a ETH address
     if is_valid_eth_address(&recipient) {
-        return Err(ContractError::InvalidRecipient {});
+        return Err(ContractError::InvalidRecipient {address: recipient});
     }
 
     let from = info.sender;
     let amount_raw = amount.u128();
     let mut account_balance = read_balance(deps.storage, &from)?;
-
-    let config_storage = ReadonlyPrefixedStorage::new(deps.storage, PREFIX_CONFIG);
-    let data = config_storage
-        .get(KEY_CONSTANTS);
-
-    let const_data: Constants = from_slice(&data.unwrap()).unwrap();
 
     if account_balance < amount_raw {
         return Err(ContractError::InsufficientFunds {
@@ -193,24 +194,29 @@ fn try_send_to_erc20(
     );
 
     let mut config_store = PrefixedStorage::new(deps.storage, PREFIX_CONFIG);
-    let data = config_store
-        .get(KEY_TOTAL_SUPPLY)
-        .expect("no total supply data stored");
-    let mut total_supply = bytes_to_u128(&data).unwrap();
+
+    //read evm contract address
+    let constants_data = config_store.get(KEY_CONSTANTS);
+    let const_data: Constants = from_slice(&constants_data.unwrap()).unwrap();
+
+    //read total supply
+    let total_supply_data = config_store.get(KEY_TOTAL_SUPPLY).expect("no total supply data stored");
+    let mut total_supply = bytes_to_u128(&total_supply_data).unwrap();
 
     total_supply -= amount_raw;
 
     config_store.set(KEY_TOTAL_SUPPLY, &total_supply.to_be_bytes());
 
-
+    //make MSG
     let message = CosmosMsg::Custom(SendToEvmMsg {
         sender: _env.contract.address.to_string(),
         contract: const_data.contract.to_string(),
-        recipient: recipient,
-        amount: amount,
+        recipient,
+        amount,
     });
 
-    Ok(Response::new().add_message(message)
+    Ok(Response::new()
+           .add_message(message)
            .add_attribute("action", "call evm")
            .add_attribute("amount", amount.to_string())
            .set_data(b"the result data"))
@@ -426,6 +432,17 @@ fn is_valid_eth_address(input: &str) -> bool {
         return false;
     }
     if !input.starts_with("0x") {
+        return false;
+    }
+    true
+}
+
+fn is_valid_wasm_address(input: &str) -> bool {
+    
+    if input.len() != 42 {
+        return false;
+    }
+    if !input.starts_with("ex") {
         return false;
     }
     true
@@ -1553,7 +1570,7 @@ mod tests {
                 name: "Cash Token".to_string(),
                 symbol: "CASH".to_string(),
                 decimals: 9,
-                evm_contract: "0xcd38B80aee05cad65571B7564BD110fdf2990de6".to_string(),
+                evm_contract: "0xcd38b80aee05cad65571b7564bd110fdf2990de6".to_string(),
             }
         }
 
@@ -1566,7 +1583,7 @@ mod tests {
             assert_eq!(0, res.messages.len());
 
             let mint_cw20_msg = ExecuteMsg::MintCW20 { recipient: "addr111".to_string(), amount: (Uint128::from(100u128)) };
-
+            
             let (env, info) = mock_env_height("ex1e5utszhwqh9dv4t3katyh5gslhefjr0xmlcyyr", 450, 550);
             let mint_cw20_result = execute(deps.as_mut(), env, info, mint_cw20_msg).unwrap();
             assert_eq!(mint_cw20_result.messages.len(), 0);
