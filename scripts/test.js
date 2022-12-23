@@ -138,7 +138,9 @@ describe("WASM bridge", function () {
 
     try{
       result = await wasmClient.execute(aliceInWASM.address,wasmContract.contractAddress,{"send_to_evm":{"recipient":errorUser.address, "amount":"10"}},{"amount":wasm.parseCoins("200000000000000000wei"),"gas":"20000000"})
-      await result.wait(1);
+      // await result.wait(1);
+      // console.log("这是返回值"+result.code)
+      console.log(result)
     }catch(err){
       wasmTxErr = err
     }
