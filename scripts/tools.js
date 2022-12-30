@@ -2,7 +2,6 @@ var encoding =require("@cosmjs/encoding");
 
 
 function evmAddress2ExAddress(addr){
-    //转化合约地址为ex
     return encoding.toBech32("ex", encoding.fromHex(addr.substring(2)))
 }
 
